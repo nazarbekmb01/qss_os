@@ -1,0 +1,557 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>The Invisible Manager</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column, sticky route bar of 4 stages; interactive "instruments" sit inside the column */
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --ink:#18202E; --muted:#5A6577; --line:#D9DEE7;
+  --accent:#2F55D4; --accent-soft:#E4EAFB;
+  --irq:#C9800C; --irq-soft:#FBF0DC;
+  --ok:#1E8A55; --ok-soft:#E1F3E9; --bad:#C2413A; --bad-soft:#F8E3E1;
+  --jobA:#2F55D4; --jobB:#7A4FD0; --jobC:#13897E; --idle:#C2413A;
+  --f-display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --f-body:"Source Sans 3","Segoe UI",Roboto,Arial,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#11161F; --surface:#19202C; --ink:#E7ECF4; --muted:#9AA6B8; --line:#2C3545;
+  --accent:#7D9BFF; --accent-soft:#1F2A47; --irq:#F0B54A; --irq-soft:#3A2D14;
+  --ok:#4CC88A; --ok-soft:#173326; --bad:#F07A72; --bad-soft:#3B1D1B;
+  --jobA:#6F8EFF; --jobB:#A88BF0; --jobC:#3CC2B3; --idle:#F07A72; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161F; --surface:#19202C; --ink:#E7ECF4; --muted:#9AA6B8; --line:#2C3545;
+  --accent:#7D9BFF; --accent-soft:#1F2A47; --irq:#F0B54A; --irq-soft:#3A2D14;
+  --ok:#4CC88A; --ok-soft:#173326; --bad:#F07A72; --bad-soft:#3B1D1B;
+  --jobA:#6F8EFF; --jobB:#A88BF0; --jobC:#3CC2B3; --idle:#F07A72; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:780px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(2rem,6vw,3.1rem);font-weight:800;letter-spacing:-.01em}
+h2{font-size:clamp(1.5rem,4vw,2rem);font-weight:800}
+h3{font-size:1.15rem;font-weight:700}
+p{margin:0}
+code,.mono{font-family:var(--f-mono);font-size:.9em}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:4px}
+.eyebrow{font-family:var(--f-mono);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+header.top{padding-block:40px 20px;display:grid;gap:14px}
+.lede{font-size:1.15rem;color:var(--muted);max-width:62ch}
+.objs{display:grid;gap:8px;margin-top:6px}
+.obj{display:flex;gap:12px;align-items:baseline}
+.obj b{font-family:var(--f-mono);font-size:.85rem;color:var(--accent);white-space:nowrap}
+
+nav.route{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);
+  margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding:10px max(16px,env(safe-area-inset-left,0px))}
+.route ol{list-style:none;margin:0 auto;padding:0;max-width:780px;display:flex;gap:8px;overflow-x:auto}
+.route li{flex:1 0 auto}
+.route a{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--ink);font-weight:600;font-size:.92rem;
+  padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);white-space:nowrap}
+.route input{accent-color:var(--ok);width:16px;height:16px;margin:0}
+.route .t{font-family:var(--f-mono);font-size:.75rem;color:var(--muted);font-weight:400}
+
+section.stage{padding-block:48px 8px;display:grid;gap:18px;scroll-margin-top:70px}
+.stage-head{display:grid;gap:6px;border-top:3px solid var(--ink);padding-top:14px}
+.stage-head .eyebrow{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.instrument{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:14px}
+.note{background:var(--accent-soft);border-radius:8px;padding:12px 14px}
+.task{border-left:4px solid var(--irq);background:var(--irq-soft);padding:12px 14px;border-radius:0 8px 8px 0}
+.task b:first-child{font-family:var(--f-mono);font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--irq);display:block;margin-bottom:2px}
+
+/* speed scale */
+.scale{display:grid;gap:10px}
+.srow{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center}
+.srow .lbl{font-weight:600}
+.srow .lbl small{display:block;font-weight:400;color:var(--muted);font-family:var(--f-mono);font-size:.75rem}
+.bar{height:30px;border-radius:4px;background:var(--accent);display:flex;align-items:center;padding-inline:10px;color:#fff;
+  font-family:var(--f-mono);font-size:.85rem;white-space:nowrap;min-width:fit-content;max-width:100%}
+.bar.k{background:var(--idle)}
+@media (max-width:520px){.srow{grid-template-columns:1fr;gap:4px}}
+
+/* timeline */
+.seg-toggle{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px;border-radius:8px;font-weight:600}
+.btn[aria-pressed="true"],.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.timeline{display:grid;gap:6px}
+.track{position:relative;display:flex;height:46px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--bg)}
+.seg{display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--f-mono);font-size:.8rem;font-weight:600;
+  border-right:1px solid var(--surface);transition:flex-basis .5s ease}
+.seg.idle{background:repeating-linear-gradient(135deg,var(--bad-soft) 0 6px,transparent 6px 12px);color:var(--idle)}
+.seg.A{background:var(--jobA)}.seg.B{background:var(--jobB)}.seg.C{background:var(--jobC)}
+.irqs{position:relative;height:22px}
+.irq{position:absolute;top:0;transform:translateX(-50%);font-family:var(--f-mono);font-size:.7rem;color:var(--irq);white-space:nowrap}
+.irq::before{content:"▲ ";}
+.axis{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
+.stats{display:flex;gap:18px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.stat{display:grid}
+.stat b{font-family:var(--f-display);font-size:1.6rem}
+.stat span{font-size:.85rem;color:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+@media (prefers-reduced-motion:reduce){.seg{transition:none}}
+
+/* toolkit */
+.tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:620px){.tools{grid-template-columns:1fr}}
+.tool{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--surface);display:grid;gap:6px;align-content:start}
+.tool .tag{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tool .life{font-size:.92rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:6px}
+
+/* quiz */
+.q{display:grid;gap:8px}
+.q+.q{border-top:1px solid var(--line);padding-top:14px}
+.opts{display:grid;gap:6px}
+.opt{text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:9px 12px;border-radius:8px}
+.opt.right{background:var(--ok-soft);border-color:var(--ok)}
+.opt.wrong{background:var(--bad-soft);border-color:var(--bad)}
+.fb{font-size:.95rem}
+.fb.ok{color:var(--ok)}.fb.no{color:var(--bad)}
+
+/* save ordering */
+.pool,.seq{display:grid;gap:6px}
+.step{text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:9px 12px;border-radius:8px;display:flex;gap:10px;align-items:flex-start}
+.step .n{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);min-width:1.5em}
+.seq .step{background:var(--accent-soft);border-color:transparent;cursor:default}
+.seq .step.right{background:var(--ok-soft)}.seq .step.wrong{background:var(--bad-soft)}
+.who{margin-left:auto;font-family:var(--f-mono);font-size:.72rem;padding:2px 8px;border-radius:999px;background:var(--surface);border:1px solid var(--line);white-space:nowrap}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.empty{color:var(--muted);font-style:italic;font-size:.95rem}
+
+pre.code{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-family:var(--f-mono);font-size:.9rem;line-height:1.7}
+.code .hl{background:var(--irq-soft);color:var(--ink);border-radius:3px;padding:0 3px}
+.code .cm{color:var(--muted)}
+
+/* layers */
+.layers{display:grid;gap:4px}
+.layer{display:grid;grid-template-columns:150px 1fr;gap:12px;padding:10px 14px;border-radius:6px;background:var(--bg);border:1px solid var(--line)}
+.layer b{font-family:var(--f-display)}
+.layer.k{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.layer.k span{color:var(--bg)}
+.wall{font-family:var(--f-mono);font-size:.75rem;text-align:center;color:var(--irq);letter-spacing:.08em;padding:2px}
+@media (max-width:520px){.layer{grid-template-columns:1fr;gap:2px}}
+
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+.tbl{overflow-x:auto}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.pts{font-family:var(--f-mono);white-space:nowrap;text-align:right}
+
+.scen{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:680px){.scen{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){.scen{grid-template-columns:1fr}}
+.sc{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface);display:grid;gap:4px;align-content:start}
+.sc .num{font-family:var(--f-mono);font-size:.75rem;color:var(--muted)}
+.sc b{font-family:var(--f-display)}
+.sc p{font-size:.92rem;color:var(--muted)}
+
+ul.check{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+ul.check li{display:flex;gap:10px;align-items:flex-start}
+ul.check input{margin-top:5px;accent-color:var(--ok);width:17px;height:17px;flex:none}
+
+details{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:12px 16px}
+summary{cursor:pointer;font-weight:700;font-family:var(--f-display)}
+dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:12px 0 0}
+dt{font-weight:700}dd{margin:0;color:var(--muted)}
+@media (max-width:520px){dl{grid-template-columns:1fr}dd{margin-bottom:6px}}
+footer{margin-top:40px;color:var(--muted);font-size:.9rem}
+/* lesson route + per-stage brief */
+.plan{padding-block:8px 0;display:grid;gap:10px}
+.plan .tbl{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.plan td:first-child{font-family:var(--f-mono);font-size:.85rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+.brief{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.brief>div{padding:12px 14px;display:grid;gap:4px;align-content:start}
+.brief>div+div{border-left:1px solid var(--line)}
+.brief .k{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.brief ul{margin:0;padding-left:18px;font-size:.95rem}
+.brief .done{background:var(--ok-soft)}
+.brief .done .k{color:var(--ok)}
+@media (max-width:640px){.brief{grid-template-columns:1fr}.brief>div+div{border-left:0;border-top:1px solid var(--line)}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">Computer Science · Grade 11 · Unit 16: System Software · Lesson 1</div>
+  <h1>The Invisible Manager</h1>
+  <p class="lede">Your laptop is running about 280 processes on 8 cores right now, and you don't notice a thing. Today you find out how the operating system manages it, and then you explain it on a poster of your own.</p>
+  <div class="objs">
+    <div class="obj"><b>11.SS.29</b><span>Explain how an OS can maximise the use of resources.</span></div>
+    <div class="obj"><b>11.SS.30</b><span>Describe the ways in which the user interface hides the complexities of the hardware from the user.</span></div>
+  </div>
+</header>
+
+<section class="plan" aria-label="How today works">
+  <h2>How today works</h2>
+  <p>Everything is on this page. Follow the steps in order and tick each one in the bar above when it is done.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Time</th><th>Step</th><th>You produce</th></tr></thead>
+    <tbody>
+      <tr><td>0–5</td><td><b>Start.</b> Your teacher asks: "280 processes, 8 cores. Who decides?" Write your guess in your notes.</td><td>One-sentence guess</td></tr>
+      <tr><td>5–18</td><td><a href="#explore-1"><b>Part 1 · Resources.</b></a> Try the two instruments, read the toolkit, answer the checks.</td><td>Calculation in notes · 3/3 checks</td></tr>
+      <tr><td>18–30</td><td><a href="#explore-2"><b>Part 2 · Hiding the hardware.</b></a> Order the Save steps, run the Python code, answer the checks.</td><td>7/7 order · hello.txt · 3/3 checks</td></tr>
+      <tr><td>30–57</td><td><a href="#poster"><b>Part 3 · Poster.</b></a> In pairs, one scenario, one slide in the class deck.</td><td>Poster (10 points)</td></tr>
+      <tr><td>57–65</td><td><a href="#share"><b>Part 4 · Gallery walk.</b></a> Comment on 2 posters.</td><td>2 comments</td></tr>
+      <tr><td>65–75</td><td><a href="#share"><b>Quiz + exit ticket.</b></a> Alone, without notes.</td><td>Quiz submitted</td></tr>
+      <tr><td>75–80</td><td><b>Wrap-up.</b> Answer the start question again. Note the homework.</td><td>Better answer</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+</div>
+
+<nav class="route" aria-label="Lesson route">
+  <ol>
+    <li><a href="#explore-1"><input type="checkbox" id="done-1" aria-label="Part 1 done"> 1 · Resources <span class="t">5–18</span></a></li>
+    <li><a href="#explore-2"><input type="checkbox" id="done-2" aria-label="Part 2 done"> 2 · Hiding the hardware <span class="t">18–30</span></a></li>
+    <li><a href="#poster"><input type="checkbox" id="done-3" aria-label="Part 3 done"> 3 · Poster <span class="t">30–57</span></a></li>
+    <li><a href="#share"><input type="checkbox" id="done-4" aria-label="Part 4 done"> 4 · Share &amp; quiz <span class="t">57–75</span></a></li>
+  </ol>
+</nav>
+
+<main class="wrap">
+
+<!-- ============ PART 1 ============ -->
+<section class="stage" id="explore-1">
+  <div class="stage-head">
+    <div class="eyebrow"><span>Part 1 · Explore · 11.SS.29</span><span>work in pairs</span></div>
+    <h2>Why the CPU must never wait</h2>
+  </div>
+  <div class="brief">
+    <div><span class="k">Use</span><ul><li>This part of the page</li><li>Slides 7–10 if you want more</li><li>Your notes</li></ul></div>
+    <div><span class="k">Do</span><ul><li>Read the speed scale, do the calculation</li><li>Switch the timeline between the two modes</li><li>Read the 6 toolkit cards</li><li>Answer the 3 checks</li></ul></div>
+    <div class="done"><span class="k">Done when · 18 min</span><ul><li>Calculation written in notes</li><li>3 of 3 checks correct</li><li>You can say why utilisation went from 59% to 91%</li></ul></div>
+  </div>
+  <p>A CPU executes about <b>2 × 10⁹ instructions per second</b>. Input and output devices are much, much slower. Look at what that means on a human scale.</p>
+
+  <div class="instrument">
+    <h3>If one CPU instruction took 1 second…</h3>
+    <div class="scale" aria-label="Time for one byte, on a human scale">
+      <div class="srow"><div class="lbl">Screen <small>50 MB/s · 1 byte = 2×10⁻⁸ s</small></div><div class="bar" style="width:8%">40 seconds</div></div>
+      <div class="srow"><div class="lbl">Disk <small>5 MB/s · 1 byte = 2×10⁻⁷ s</small></div><div class="bar" style="width:28%">≈ 7 minutes</div></div>
+      <div class="srow"><div class="lbl">Keyboard <small>10 B/s · 1 key = 0.1 s</small></div><div class="bar k" style="width:100%">≈ 6 years</div></div>
+    </div>
+    <p class="eyebrow">Bars are not to scale: the keyboard bar would be 5 million times longer than the screen bar.</p>
+    <div class="task"><b>Your turn</b>How many instructions could the CPU execute while you press ONE key? Write the calculation in your notes. <i>(Hint: time × speed.)</i></div>
+  </div>
+
+  <div class="instrument">
+    <h3>The CPU timeline: three jobs, one CPU</h3>
+    <p>Job A needs input from the <b>keyboard</b>. Job C needs data from the <b>disk</b>. Switch between the two modes and compare.</p>
+    <div class="seg-toggle" role="group" aria-label="Mode">
+      <button class="btn" id="m-no" aria-pressed="true">Without an OS</button>
+      <button class="btn" id="m-os" aria-pressed="false">With an OS</button>
+    </div>
+    <div class="timeline">
+      <div class="track" id="track" aria-live="polite"></div>
+      <div class="irqs" id="irqs"></div>
+      <div class="axis"><span>0</span><span>time units →</span><span>17</span></div>
+    </div>
+    <div class="legend"><span><i style="background:var(--jobA)"></i>Job A</span><span><i style="background:var(--jobB)"></i>Job B</span><span><i style="background:var(--jobC)"></i>Job C</span><span><i style="background:var(--bad-soft);border:1px solid var(--idle)"></i>CPU idle</span><span style="color:var(--irq)">▲ interrupt</span></div>
+    <div class="stats"><div class="stat"><b id="s-total">17</b><span>total time</span></div><div class="stat"><b id="s-idle">7</b><span>CPU idle</span></div><div class="stat"><b id="s-util">59%</b><span>CPU utilisation</span></div></div>
+    <p id="explain" class="note"></p>
+    <div class="task"><b>Think</b>The CPU did not get faster. So why did the jobs finish sooner? What did the OS do at each ▲?</div>
+  </div>
+
+  <h3>The OS toolkit</h3>
+  <p>Read the six cards. Each one is a way the OS keeps resources busy. You will need them for your poster.</p>
+  <div class="tools">
+    <div class="tool"><span class="tag">CPU</span><h3>Multiprogramming</h3><p>Several processes are kept in memory at the same time, so the CPU always has another job ready.</p><p class="life">Music keeps playing while you type an essay.</p></div>
+    <div class="tool"><span class="tag">CPU</span><h3>Scheduling</h3><p>The <b>scheduler</b> decides which ready process gets the CPU next and for how long (a time slice of a few milliseconds).</p><p class="life">280 processes take turns so fast that it looks like they all run at once.</p></div>
+    <div class="tool"><span class="tag">CPU + I/O</span><h3>Interrupts</h3><p>A device sends a signal when it has finished. The CPU does not have to keep asking "are you ready?" (that is called polling).</p><p class="life">An oven timer: the cook does other work until it rings.</p></div>
+    <div class="tool"><span class="tag">I/O</span><h3>Buffering</h3><p>Data is collected in an area of memory called a buffer, so it moves in blocks instead of one byte at a time.</p><p class="life">YouTube loads the next seconds of video before you watch them.</p></div>
+    <div class="tool"><span class="tag">I/O</span><h3>Spooling and DMA</h3><p><b>Spooling:</b> slow jobs (printing) wait in a queue on disk. <b>DMA:</b> a controller copies a block between a device and memory without the CPU, then sends one interrupt.</p><p class="life">30 students print at once; a 5 GB file is copied to a USB stick.</p></div>
+    <div class="tool"><span class="tag">Memory</span><h3>Memory management</h3><p>The OS decides which processes are in RAM and where, protects each process's memory, and frees memory when a process ends. More ready processes means more choice for the scheduler.</p><p class="life">40 browser tabs open; one tab crashes, the others survive.</p></div>
+  </div>
+
+  <div class="instrument" id="quiz1">
+    <h3>Check yourself</h3>
+    <div class="q" data-a="1" data-ok="Correct: the scheduler gives the CPU to another ready process, and an interrupt says when the disk is done." data-no="Not quite. The OS never lets the CPU wait: the waiting process steps aside and another ready process runs.">
+      <p><b>1.</b> A process asks for data from the disk. What does the OS do?</p>
+      <div class="opts"><button class="opt">Stops the CPU until the data arrives</button><button class="opt">Gives the CPU to another ready process</button><button class="opt">Makes the disk spin faster</button></div>
+      <p class="fb" aria-live="polite"></p>
+    </div>
+    <div class="q" data-a="2" data-ok="Correct: DMA moves the block, the CPU gets one interrupt at the end." data-no="Not quite. Spooling is a print queue and buffering is temporary storage; DMA is the controller that copies data without the CPU.">
+      <p><b>2.</b> Which technique copies a block of data between a device and memory without using the CPU?</p>
+      <div class="opts"><button class="opt">Spooling</button><button class="opt">Buffering</button><button class="opt">DMA (Direct Memory Access)</button></div>
+      <p class="fb" aria-live="polite"></p>
+    </div>
+    <div class="q" data-a="0" data-ok="Correct: 0.1 s × 2×10⁹ = 2×10⁸ instructions." data-no="Not quite. Multiply the time by the speed: 0.1 s × 2×10⁹ instructions per second.">
+      <p><b>3.</b> How many instructions can a 2×10⁹ instructions/s CPU execute during one keystroke (0.1 s)?</p>
+      <div class="opts"><button class="opt">2 × 10⁸</button><button class="opt">2 × 10¹⁰</button><button class="opt">20</button></div>
+      <p class="fb" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PART 2 ============ -->
+<section class="stage" id="explore-2">
+  <div class="stage-head">
+    <div class="eyebrow"><span>Part 2 · Explore · 11.SS.30</span><span>work in pairs</span></div>
+    <h2>Hiding the hardware</h2>
+  </div>
+  <div class="brief">
+    <div><span class="k">Use</span><ul><li>This part of the page</li><li>Python (IDLE, VS Code or cs50.dev)</li><li>Slides 4 and 38</li></ul></div>
+    <div><span class="k">Do</span><ul><li>Put the 7 Save steps in order</li><li>Run the 3-line program</li><li>Read the layers and the 4 ways</li><li>Answer the 3 checks</li></ul></div>
+    <div class="done"><span class="k">Done when · 30 min</span><ul><li>7 of 7 steps in order</li><li>hello.txt is in your folder</li><li>3 of 3 checks correct</li></ul></div>
+  </div>
+  <p>In Harvard's CS50, David Malan calls <b>abstraction</b> one of the most important ideas in computer science: hide the details so people can think about the big picture. The OS is a stack of abstractions between you and the hardware.</p>
+
+  <div class="instrument">
+    <h3>What really happens when you press "Save"?</h3>
+    <p>Tap the steps in the order they happen, from your click down to the hardware.</p>
+    <div class="seq" id="seq"><p class="empty">Your order will appear here.</p></div>
+    <div class="pool" id="pool"></div>
+    <div class="row"><button class="btn primary" id="sv-check">Check my order</button><button class="btn" id="sv-reset">Start again</button><span id="sv-fb" aria-live="polite"></span></div>
+    <div class="task"><b>Count</b>When the correct order is shown, count the steps the user sees. How many does the OS hide?</div>
+  </div>
+
+  <div class="instrument">
+    <h3>The same idea in code</h3>
+    <p>Run these three lines in Python. Then find <code>hello.txt</code> in your folder.</p>
+<pre class="code"><span class="hl">with open("hello.txt", "w") as f:</span>   <span class="cm"># API call → system call → kernel</span>
+    <span class="hl">f.write("Hello, OS!")</span>            <span class="cm"># kernel → file system → driver → disk</span>
+print("Saved!")</pre>
+    <p><code>open()</code> and <code>write()</code> are part of an <b>API</b>: ready-made requests. Inside, Python makes a <b>system call</b> to the OS kernel. Your code doesn't know whether the disk is an SSD, a hard drive or a USB stick, which sector to use, or which driver to call.</p>
+    <div class="task"><b>Try</b>Change the path so the file is saved somewhere else (another folder or a USB stick). What else did you have to change in the code? Why?</div>
+  </div>
+
+  <div class="instrument">
+    <h3>Why programs can't touch the hardware</h3>
+    <div class="layers">
+      <div class="layer"><b>User</b><span>Clicks, taps, types, speaks</span></div>
+      <div class="layer"><b>User interface</b><span>GUI, command line or voice</span></div>
+      <div class="layer"><b>Applications</b><span>Run in <b>user mode</b>: no direct access to hardware</span></div>
+      <div class="wall">── system call: the only door ──</div>
+      <div class="layer k"><b>Kernel</b><span>Runs in <b>kernel mode</b>: full control of hardware</span></div>
+      <div class="layer"><b>Device drivers</b><span>Translate OS commands for one specific device</span></div>
+      <div class="layer"><b>Hardware</b><span>CPU, memory, disk, printer, screen</span></div>
+    </div>
+    <p>It's like a restaurant: you order from the menu, but you never walk into the kitchen. If one program crashes or is malicious, it can't damage the others or read their data.</p>
+  </div>
+
+  <h3>Four ways the OS hides complexity</h3>
+  <div class="tools">
+    <div class="tool"><span class="tag">For the user</span><h3>User interface</h3><p>GUI, command line or voice. You use icons, menus and words instead of machine instructions.</p><p class="life">"Hey Siri, set a timer."</p></div>
+    <div class="tool"><span class="tag">For the user</span><h3>File system</h3><p>You see file names and folders. The OS maps them to physical blocks on the disk.</p><p class="life">Homework/essay.docx, not "sector 48 213".</p></div>
+    <div class="tool"><span class="tag">For devices</span><h3>Device drivers</h3><p>Each device understands its own commands. The driver translates, so the OS can treat every printer the same.</p><p class="life">One "Print" button works for any printer.</p></div>
+    <div class="tool"><span class="tag">For programmers</span><h3>System calls and APIs</h3><p>Programs ask the OS for a service instead of writing hardware code.</p><p class="life"><code>open()</code> works on any drive.</p></div>
+  </div>
+
+  <div class="instrument" id="quiz2">
+    <h3>Check yourself</h3>
+    <div class="q" data-a="0" data-ok="Correct: the file system maps names and folders to physical locations." data-no="Not quite. Names and folders instead of sectors: that is the file system.">
+      <p><b>1.</b> You save "essay.docx" in "Homework" and never think about disk sectors. Which OS facility hides them?</p>
+      <div class="opts"><button class="opt">The file system</button><button class="opt">The scheduler</button><button class="opt">The keyboard driver</button></div>
+      <p class="fb" aria-live="polite"></p>
+    </div>
+    <div class="q" data-a="2" data-ok="Correct: the device driver translates general commands for that printer." data-no="Not quite. Translating commands for one specific device is the job of a device driver.">
+      <p><b>2.</b> A new printer from a different brand still works with the same "Print" button. Why?</p>
+      <div class="opts"><button class="opt">The compiler translates the document</button><button class="opt">The printer uses DMA</button><button class="opt">A device driver translates the OS commands for it</button></div>
+      <p class="fb" aria-live="polite"></p>
+    </div>
+    <div class="q" data-a="1" data-ok="Correct: user mode protects the system; only the kernel touches hardware." data-no="Not quite. User mode is about protection: programs must ask the kernel through a system call.">
+      <p><b>3.</b> Why do applications run in user mode?</p>
+      <div class="opts"><button class="opt">Because user mode is faster</button><button class="opt">So they can't access hardware directly, which protects the system</button><button class="opt">So they don't need memory</button></div>
+      <p class="fb" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PART 3 ============ -->
+<section class="stage" id="poster">
+  <div class="stage-head">
+    <div class="eyebrow"><span>Part 3 · Create</span><span>pairs · ~27 min</span></div>
+    <h2>Make a poster: "The OS at work"</h2>
+  </div>
+  <div class="brief">
+    <div><span class="k">Use</span><ul><li>Class Google Slides deck (link from your teacher), your pair's slide</li><li>Toolkit cards from Parts 1–2</li><li>The checklist and rubric below</li></ul></div>
+    <div><span class="k">Do</span><ul><li>Agree on a scenario with your teacher</li><li>Plan: resources → techniques → hiding</li><li>Build the poster on your slide</li></ul></div>
+    <div class="done"><span class="k">Done when · 57 min</span><ul><li>All 6 checklist boxes ticked</li><li>Both names on the slide</li></ul></div>
+  </div>
+  <p>With your partner, choose <b>one scenario</b> (your teacher makes sure every scenario is taken). Your poster explains what the OS does behind the scenes in that situation. Use your own words and the key terms in English.</p>
+
+  <div class="scen">
+    <div class="sc"><span class="num">Scenario 1</span><b>The gamer</b><p>An online game, Discord voice chat and Spotify, all at once.</p></div>
+    <div class="sc"><span class="num">Scenario 2</span><b>The school printer</b><p>25 students press "Print" on their essays in the same minute.</p></div>
+    <div class="sc"><span class="num">Scenario 3</span><b>The busy phone</b><p>10 apps open, notifications arriving, battery at 15%.</p></div>
+    <div class="sc"><span class="num">Scenario 4</span><b>The video call</b><p>A Zoom lesson with screen sharing while you type notes.</p></div>
+    <div class="sc"><span class="num">Scenario 5</span><b>Saving homework</b><p>You save a project to a USB stick, then upload it to the cloud.</p></div>
+    <div class="sc"><span class="num">Scenario 6</span><b>The big download</b><p>A 5 GB game update downloads while you watch YouTube.</p></div>
+  </div>
+
+  <div class="instrument">
+    <h3>Your poster must include</h3>
+    <ul class="check" id="poster-check">
+      <li><input type="checkbox" id="pc1"><label for="pc1">A title and a picture or diagram of your scenario</label></li>
+      <li><input type="checkbox" id="pc2"><label for="pc2">At least <b>3 resources</b> the scenario uses (CPU, RAM, I/O devices, storage) and what each one is doing</label></li>
+      <li><input type="checkbox" id="pc3"><label for="pc3">At least <b>3 techniques</b> from the OS toolkit, each linked to something in your scenario</label></li>
+      <li><input type="checkbox" id="pc4"><label for="pc4">At least <b>2 ways the OS hides the hardware</b> from the user in your scenario</label></li>
+      <li><input type="checkbox" id="pc5"><label for="pc5">One <b>number</b> that shows why the CPU must not wait (from Part 1)</label></li>
+      <li><input type="checkbox" id="pc6"><label for="pc6">Key terms used correctly; readable layout; source for every image you didn't make</label></li>
+    </ul>
+    <p><b>Tools:</b> one slide in your class's shared Google Slides deck (your teacher shares the link), or Canva. Put both names on the poster.</p>
+  </div>
+
+  <div class="instrument">
+    <h3>How your poster is assessed</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Criterion</th><th>Full marks look like</th><th style="text-align:right">Points</th></tr></thead>
+      <tbody>
+        <tr><td>Scenario shown</td><td>Title and a picture or diagram that make the situation clear</td><td class="pts">1</td></tr>
+        <tr><td>Resources</td><td>3 or more resources, each with what it does in this scenario</td><td class="pts">2</td></tr>
+        <tr><td>Maximising resources (11.SS.29)</td><td>3 or more techniques, each correctly explained for this scenario (1 point each)</td><td class="pts">3</td></tr>
+        <tr><td>Hiding complexity (11.SS.30)</td><td>2 or more ways, each correctly explained for this scenario (1 point each)</td><td class="pts">2</td></tr>
+        <tr><td>Evidence</td><td>A correct number that shows how slow I/O is compared with the CPU</td><td class="pts">1</td></tr>
+        <tr><td>Communication</td><td>Correct terms, own words, readable, image sources given</td><td class="pts">1</td></tr>
+        <tr><th colspan="2" style="text-align:right">Total</th><td class="pts"><b>10</b></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ============ PART 4 ============ -->
+<section class="stage" id="share">
+  <div class="stage-head">
+    <div class="eyebrow"><span>Part 4 · Share and check</span><span>~16 min</span></div>
+    <h2>Gallery walk, then the quiz</h2>
+  </div>
+  <div class="brief">
+    <div><span class="k">Use</span><ul><li>The class deck (comments)</li><li>Quiz link from your teacher</li></ul></div>
+    <div><span class="k">Do</span><ul><li>Comment on 2 posters</li><li>Do the quiz alone, no notes</li><li>Fill in the exit ticket at the end of the quiz</li></ul></div>
+    <div class="done"><span class="k">Done when · 75 min</span><ul><li>2 comments posted</li><li>Quiz submitted</li></ul></div>
+  </div>
+  <div class="instrument">
+    <h3>Gallery walk (8 min)</h3>
+    <p>Open the shared deck. Look at the two posters <b>after yours</b> (the last pair looks at the first two). Leave one comment on each:</p>
+    <ul class="check">
+      <li><span>⭐</span><span><b>Star 1:</b> one technique they explained well</span></li>
+      <li><span>⭐</span><span><b>Star 2:</b> one thing you learned from their scenario</span></li>
+      <li><span>➜</span><span><b>Wish:</b> one thing that would make it better, or a question</span></li>
+    </ul>
+  </div>
+  <div class="instrument">
+    <h3>Quiz and exit ticket (8 min)</h3>
+    <p>Open the quiz link from your teacher. Work alone, without notes. At the end, fill in the exit ticket: <b>3</b> resources the OS manages · <b>2</b> ways it hides the hardware · <b>1</b> question you still have.</p>
+  </div>
+  <div class="note"><b>Homework:</b> Worksheet "Purposes of an Operating System", <b>Part B</b> (exam practice, 16 marks), from your teacher. Rule: idea + "because" = 1 mark. <b>Challenge:</b> Part C (6 marks): is a CPU that is busy all the time always best for the user?</div>
+</section>
+
+<section class="stage" id="glossary">
+  <details>
+    <summary>Glossary: key terms</summary>
+    <dl>
+      <dt>Resource</dt><dd>Anything processes need: CPU time, main memory, I/O devices, storage.</dd>
+      <dt>Multiprogramming</dt><dd>Several processes in memory at once, so the CPU always has work.</dd>
+      <dt>Scheduler</dt><dd>The part of the OS that chooses which process runs next.</dd>
+      <dt>Interrupt</dt><dd>A signal to the CPU that an event needs attention.</dd>
+      <dt>Buffer</dt><dd>Memory that holds data temporarily between devices of different speeds.</dd>
+      <dt>Spooling</dt><dd>Putting output jobs (e.g. printing) in a queue on disk.</dd>
+      <dt>DMA</dt><dd>Direct Memory Access: a controller moves data between a device and memory without the CPU.</dd>
+      <dt>Kernel</dt><dd>The core of the OS, always in memory, runs in kernel mode.</dd>
+      <dt>Device driver</dt><dd>Software that translates OS commands for one specific device.</dd>
+      <dt>API / system call</dt><dd>A ready-made request a program makes to use an OS service.</dd>
+      <dt>Abstraction</dt><dd>Hiding details so you can work with the big picture.</dd>
+    </dl>
+  </details>
+</section>
+
+<footer>Unit 16 · Purposes of an Operating System · Slides 4, 7–10 and 38 of the unit presentation cover the same ideas.</footer>
+</main>
+
+<script>
+(function(){
+  /* ---- saved ticks (per-viewer convenience) ---- */
+  function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
+  function save(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+  document.querySelectorAll('input[type=checkbox][id]').forEach(function(cb){
+    cb.checked = load('osl-'+cb.id)==='1';
+    cb.addEventListener('change',function(){save('osl-'+cb.id,cb.checked?'1':'0')});
+    cb.addEventListener('click',function(e){e.stopPropagation()});
+  });
+
+  /* ---- timeline ---- */
+  var modes={
+    no:{segs:[['A',2],['idle',4,'A waits for keyboard'],['A',2],['B',3],['C',2],['idle',3,'C waits for disk'],['C',1]],irqs:[],
+        text:'Without an OS the CPU must finish each job before starting the next. While Job A waits for the keyboard and Job C waits for the disk, the CPU sits idle: 7 of 17 time units are wasted.'},
+    os:{segs:[['A',2],['B',3],['C',2],['A',2],['idle',1],['C',1]],irqs:[[6,'keyboard done'],[10,'disk done']],
+        text:'With an OS, when Job A starts waiting for the keyboard the scheduler gives the CPU to Job B, then Job C. Each device sends an interrupt (▲) when it finishes, and the waiting job becomes ready again. Only 1 time unit is idle.'}
+  };
+  var SCALE=17, track=document.getElementById('track'), irqs=document.getElementById('irqs');
+  function draw(m){
+    var d=modes[m], total=0, idle=0; track.innerHTML=''; irqs.innerHTML='';
+    d.segs.forEach(function(s){
+      total+=s[1]; if(s[0]==='idle') idle+=s[1];
+      var el=document.createElement('div'); el.className='seg '+s[0];
+      el.style.flex='0 0 '+(s[1]/SCALE*100)+'%';
+      el.textContent = s[0]==='idle' ? (s[1]>1?'idle':'·') : s[0];
+      el.title = s[2] || (s[0]==='idle'?'CPU idle':'Job '+s[0]+' on the CPU');
+      track.appendChild(el);
+    });
+    d.irqs.forEach(function(r){var el=document.createElement('span');el.className='irq';el.style.left=(r[0]/SCALE*100)+'%';el.textContent=r[1];irqs.appendChild(el)});
+    document.getElementById('s-total').textContent=total;
+    document.getElementById('s-idle').textContent=idle;
+    document.getElementById('s-util').textContent=Math.round((total-idle)/total*100)+'%';
+    document.getElementById('explain').textContent=d.text;
+    document.getElementById('m-no').setAttribute('aria-pressed',m==='no');
+    document.getElementById('m-os').setAttribute('aria-pressed',m==='os');
+  }
+  document.getElementById('m-no').onclick=function(){draw('no')};
+  document.getElementById('m-os').onclick=function(){draw('os')};
+  draw('no');
+
+  /* ---- multiple choice ---- */
+  document.querySelectorAll('.q').forEach(function(q){
+    var a=+q.dataset.a, fb=q.querySelector('.fb'), opts=q.querySelectorAll('.opt');
+    opts.forEach(function(o,i){o.addEventListener('click',function(){
+      opts.forEach(function(x){x.classList.remove('right','wrong')});
+      if(i===a){o.classList.add('right');fb.className='fb ok';fb.textContent=q.dataset.ok}
+      else{o.classList.add('wrong');fb.className='fb no';fb.textContent=q.dataset.no}
+    })});
+  });
+
+  /* ---- Save ordering ---- */
+  var steps=[
+    ['You click the "Save" icon in the window.','User'],
+    ['The application calls a file API function, e.g. write().','Programmer'],
+    ['A system call switches the CPU from user mode to kernel mode.','OS'],
+    ['The file system finds free blocks and updates the folder.','OS'],
+    ['The device driver turns the request into commands for this SSD or HDD.','OS'],
+    ['The disk controller writes the bytes to physical blocks on the drive.','Hardware'],
+    ['The device sends an interrupt: done. The app shows "Saved".','User']
+  ];
+  var order=[3,6,0,4,2,5,1], picked=[];
+  var pool=document.getElementById('pool'), seq=document.getElementById('seq'), fb=document.getElementById('sv-fb');
+  function render(checked){
+    pool.innerHTML=''; seq.innerHTML='';
+    if(!picked.length){seq.innerHTML='<p class="empty">Your order will appear here.</p>'}
+    picked.forEach(function(idx,pos){
+      var el=document.createElement('div'); el.className='step'+(checked?(idx===pos?' right':' wrong'):'');
+      el.innerHTML='<span class="n">'+(pos+1)+'</span><span></span>'+(checked?'<span class="who">'+steps[idx][1]+'</span>':'');
+      el.children[1].textContent=steps[idx][0]; seq.appendChild(el);
+    });
+    order.forEach(function(idx){
+      if(picked.indexOf(idx)>-1) return;
+      var b=document.createElement('button'); b.className='step'; b.type='button';
+      b.innerHTML='<span class="n">+</span><span></span>'; b.children[1].textContent=steps[idx][0];
+      b.onclick=function(){picked.push(idx);fb.textContent='';render(false)};
+      pool.appendChild(b);
+    });
+  }
+  document.getElementById('sv-check').onclick=function(){
+    if(picked.length<steps.length){fb.textContent='Place all 7 steps first.';return}
+    var ok=picked.filter(function(v,i){return v===i}).length;
+    render(true);
+    fb.textContent= ok===7 ? 'All 7 correct! The labels show who sees each step.' : ok+' of 7 in the right place. Press "Start again" and try once more.';
+  };
+  document.getElementById('sv-reset').onclick=function(){picked=[];fb.textContent='';render(false)};
+  render(false);
+})();
+</script>
+
+</body></html>
